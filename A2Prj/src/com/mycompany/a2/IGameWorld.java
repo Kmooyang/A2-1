@@ -1,13 +1,15 @@
 package com.mycompany.a2;
 
-import java.util.Iterator;
+//import java.util.Iterator;
+//import com.mycompany.a2.GameObjectCollection.Iterator;
 
 public interface IGameWorld {
 
-	public Iterator getIterator();
+	public IIterator getIterator();
 	public int getPlayerScore();
 	public int getMissileCount();
-	public int getElapsedTime();
+	public float getElapsedTime();
 	public boolean isSoundEnabled();
 	public int getLivesRemaining();
+	public GameObjectCollection getGameObjects();
 }

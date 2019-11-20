@@ -1,38 +1,51 @@
 package com.mycompany.a2;
 
-import java.util.Iterator;
+//import java.util.Iterator;
 import java.util.Observable;
+
+//import com.mycompany.a2.GameObjectCollection.Iterator;
 
 public class GameWorldProxy extends Observable implements IGameWorld {
 	
-	private GameWorld cloneworld;
+	private GameWorld gw;
 
-	public GameWorldProxy(GameWorld gWorld) {
-		cloneworld = gWorld;
+	public GameWorldProxy(GameWorld gw) {
+		this.gw = gw;
+		this.setChanged();
+		//this.notifyObservers();
 	}
 	
-	public Iterator getIterator() {
-		return cloneworld.getIterator();
+	public GameWorld getGW() {
+		return this.gw;
+	}
+	
+	public IIterator getIterator() {
+		return gw.getIterator();
 	}
 	
 	public int getPlayerScore() {
-		return cloneworld.getPlayerScore();
+		return gw.getPlayerScore();
 	}
 	
 	public int getMissileCount() {
-		return cloneworld.getMissileCount();
+		return gw.getMissileCount();
 	}
 	
-	public int getElapsedTime() {
-		return cloneworld.getElapsedTime();
+	public float getElapsedTime() {
+		return gw.getElapsedTime();
 	}
 	
 	public boolean isSoundEnabled() {
-		return cloneworld.isSoundEnabled();
+		return gw.isSoundEnabled();
 	}
 	
 	public int getLivesRemaining() {
-		return cloneworld.getLivesRemaining();
+		return gw.getLivesRemaining();
+	}
+
+	@Override
+	public GameObjectCollection getGameObjects() {
+		return gw.getGameObjects();
 	}
 
 

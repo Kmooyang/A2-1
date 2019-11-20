@@ -23,7 +23,8 @@ abstract class ObjectMoveable extends GameObject implements Moveable {
 	}
 	
 	public void move() {
-		
+		this.setLocation((this.getLocationX()+(Math.cos(90-this.getDirection())*this.getSpeed())), 
+				((this.getLocationY()+(Math.sin(90-this.getDirection())*this.getSpeed()))));
 	}
 	
 	public void setSpeed(int newSpeed) {

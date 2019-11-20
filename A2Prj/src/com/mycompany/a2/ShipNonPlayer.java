@@ -3,6 +3,8 @@ package com.mycompany.a2;
 import java.util.Random;
 
 import com.codename1.charts.util.ColorUtil;
+import com.codename1.ui.Graphics;
+import com.codename1.ui.geom.Point;
 
 public class ShipNonPlayer extends Ship {
 	//from GameObject
@@ -36,6 +38,8 @@ public class ShipNonPlayer extends Ship {
 		this.setDirection(r.nextInt(360));	
 		//set max missile count of NPS to 4
 		this.setMissileCount(4);
+		NPSLauncher=new MissileLauncher(this.getDirection(), this.getLocationX(),
+				this.getLocationY(), this.getSpeed());
 	}
 	
 	public String toString() {
@@ -50,5 +54,20 @@ public class ShipNonPlayer extends Ship {
 	
 	public int getSize() {
 		return this.size;
+	}
+	
+	public MissileLauncher getMissileLauncher() {
+		return NPSLauncher;
+	}
+
+	@Override
+	public void draw(Graphics g, Point pCmpRelPrnt) {
+		int x = (int)(pCmpRelPrnt.getX()+ this.getLocationX());
+		int y = (int)(pCmpRelPrnt.getY()+ this.getLocationY());
+		int startAngle=360, arcAngle=360;
+		g.setColor(this.getColor()); 
+	    g.drawArc(x, y, getSize(), getSize(), startAngle, arcAngle);
+		g.fillArc(x, y, getSize(), getSize(), startAngle, arcAngle);
+		
 	}
 }

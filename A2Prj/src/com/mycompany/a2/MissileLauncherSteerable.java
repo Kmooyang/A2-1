@@ -8,9 +8,13 @@ public class MissileLauncherSteerable extends MissileLauncher implements Steerab
 	//from objectMoveable
 	//int speed, int direction
 	
-	public MissileLauncherSteerable() {
+	public MissileLauncherSteerable(int direction, double x,
+			double y, int speed) {
+		super(direction, x, y, speed);
 		this.setColor(ColorUtil.CYAN);
-		
+		this.setDirection(direction);
+		this.setLocation(x, y);
+		this.setSpeed(speed);
 	}
 	public void turnLeft() {
 		this.setDirection(this.getDirection()-5);

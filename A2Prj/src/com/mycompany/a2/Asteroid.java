@@ -2,6 +2,8 @@ package com.mycompany.a2;
 
 import java.util.Random;
 import com.codename1.charts.util.ColorUtil;
+import com.codename1.ui.Graphics;
+import com.codename1.ui.geom.Point;
 
 public class Asteroid extends ObjectMoveable {
 	//from GameObject
@@ -39,5 +41,15 @@ public class Asteroid extends ObjectMoveable {
 	
 	public int getSize() {
 		return this.size;
+	}
+
+	@Override
+	public void draw(Graphics g, Point pCmpRelPrnt) {
+		int x = (int)(pCmpRelPrnt.getX()+ this.getLocationX());
+		int y = (int)(pCmpRelPrnt.getY()+ this.getLocationY());
+		int startAngle=360, arcAngle=360;
+		g.setColor(this.getColor()); 
+	    g.drawArc(x, y, 50, 50, startAngle, arcAngle);
+		g.fillArc(x, y, 50, 50, startAngle, arcAngle);
 	}
 }

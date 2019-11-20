@@ -1,8 +1,11 @@
 package com.mycompany.a2;
 
 import com.codename1.charts.util.ColorUtil;
+import com.codename1.ui.Graphics;
+import com.codename1.ui.geom.Point;
+import com.codename1.ui.geom.Point2D;
 
-public class ShipPlayer extends Ship implements Steerable {
+public class ShipPlayer extends Ship implements Steerable{
 	//from GameObject
 	//float xPoint, float yPoint, int color
 	
@@ -16,36 +19,28 @@ public class ShipPlayer extends Ship implements Steerable {
 		//set location of PS to middle of map
 		/*this.xPoint=512;
 		this.yPoint=384;*/
-		
-		this.setLocation(512,384);
+		//int width = 15;
+		//int height = 15;
+		this.setLocation(100,100);
 		//set initial speed to 0
 		this.setSpeed(0);
 		//set initial direction to north
-		this.setDirection(0);
+		this.setDirection(360);
 		//set missile amount at 10
 		this.setMissileCount(10);
 		//set color to green for the good side
 		this.setColor(ColorUtil.GREEN);
 		
-		this.launcherSteerable= new MissileLauncherSteerable();
-		launcherSteerable.setDirection(this.getDirection());
-		launcherSteerable.setLocation(this.getLocationX(), this.getLocationY());
-		launcherSteerable.setSpeed(this.getSpeed());
+		this.launcherSteerable= new MissileLauncherSteerable(this.getDirection(),
+				this.getLocationX(), this.getLocationY(), this.getSpeed());
 	}
 	
 	private MissileLauncherSteerable launcherSteerable;
-	
-	/*+shipPlayer(double, double, int, int, int, int)
-	+increaseSpeed(): void
-	+decreaseSpeed(): void
-	+turnLeft(): void
-	+turnRight(): void
-	+reloadMissiles(): void
-	+getDirection(): int
-	+revolve(): void*/
+
 	
 	public void increaseSpeed() {
-		
+		this.setSpeed(getSpeed()+5);
+		System.out.println("Player speed slowed down");
 	}
 	
 	public void decreaseSpeed() {
@@ -86,4 +81,37 @@ public class ShipPlayer extends Ship implements Steerable {
 		this.setLocation(512, 384);
 	}
 	
+	public MissileLauncher getMissileLauncher() {
+		return launcherSteerable;
+	}
+	
+	public void turnLauncherRight() {
+		this.launcherSteerable.turnRight();
+	}
+	
+	public void turnLauncherLeft() {
+		this.launcherSteerable.turnLeft();
+
+	}
+	
+	public void move(double minHeight, double minWidth, double maxHeight, double maxWidth) {
+		this.setLocation((this.getLocationX()+(Math.cos(90-this.getDirection())*this.getSpeed())), 
+				((this.getLocationY()+(Math.sin(90-this.getDirection())*this.getSpeed()))));
+	}
+	
+	@Override
+	public void draw(Graphics g, Point pCmpRelPrnt) {
+		
+		int x = (int)(pCmpRelPrnt.getX()+ this.getLocationX());
+		int y = (int)(pCmpRelPrnt.getY()+ this.getLocationY());
+		
+		//int startAngle=360, arcAngle=360;
+		g.setColor(this.getColor()); 
+	    g.drawRect(x, y, 50, 50);
+		g.fillRect(x, y, 50, 50);
+		g.drawRect(x, y+50, 10, 10);
+		g.fillRect(x, y+50, 10, 10);
+		g.drawRect(x+40, y+50, 10, 10);
+		g.fillRect(x+40, y+50, 10, 10);
+	}
 }

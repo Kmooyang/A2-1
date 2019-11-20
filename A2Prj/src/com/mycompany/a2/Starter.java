@@ -50,9 +50,6 @@ public class Starter {
             current.show();
             return;
         }
-        Form hi = new Form("CSC 133 Summer 2019", BoxLayout.y());
-        hi.add(new Label("CSC 133 Summer 2019"));
-        hi.show();
         
         //start the game baby
         new Game();

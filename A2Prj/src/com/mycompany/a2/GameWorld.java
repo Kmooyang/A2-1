@@ -1,35 +1,60 @@
 package com.mycompany.a2;
-import java.util.Iterator;
+import java.util.Observable;
+//import java.util.Iterator;
 import java.util.Random;
-import java.util.Vector;
+//import java.util.Vector;
+//import java.util.Observerable;
 //import java.util.Vector.clone();
 
-import com.codename1.charts.util.ColorUtil;
+import com.codename1.ui.geom.Point;
+import com.mycompany.a2.GameObjectCollection.Iterator;
+import com.mycompany.a2.sounds.BackgroundMusic;
+import com.mycompany.a2.sounds.Sound;
+
+//import com.codename1.charts.util.ColorUtil;
+//import com.mycompany.a2.GameObjectCollection.Iterator;
 
 //import com.codename1.charts.util.ColorUtil;
 
-public class GameWorld implements IGameWorld {
+public class GameWorld extends Observable implements IGameWorld {
 	
 	//random will be used for randomized integers and floats etc
 	Random random = new Random();
 	//this will be the storage for the objects in the game
 	//limitless, atleast until RAM runs out
 	private GameObjectCollection store = new GameObjectCollection();
-
+	
+	BackgroundMusic gameBackgroundMusic = new BackgroundMusic("Alien.mp3");
+	Sound shipFiresMissile = new Sound("rocket2.wav");
+	Sound PSMissileLauncherRotates = new Sound("compidle.wav");
+	Sound gameOverNoLives = new Sound("zdeblo00.wav");
+	
 	int numLives =3;
-	int gameTime=0;
+	float gameTime=0;
 	int playerScore=0;
 	int numPlayerMissiles=10;
+	int numNonPlayerMissiles=4;
 	double windowWidth;
 	double windowLength;
 	boolean hasPlayerShip;
+	boolean soundToggle=true;
+	double windowHeight;
+	double minWidth;
+	double minHeight;
+	public int getNumLives;
 	
 	public GameWorld() {
-		
+		init();
 	}
 	
 	public void init() {
-		
+		//this.addShipPlayer();
+		gameBackgroundMusic.play();
+	}
+	
+	public void proxy() {
+		this.setChanged();
+		this.notifyObservers(new GameWorldProxy(this));
 	}
 	public void addNewAsteroid() {
 		
@@ -38,6 +63,8 @@ public class GameWorld implements IGameWorld {
 		//Adds an asteroid to the vector
 		store.add(asteroid1);
 		System.out.println("An asteroid has been created");
+		
+		proxy();
 	}
 	
 	public void addShipNonPlayer() {
@@ -47,6 +74,8 @@ public class GameWorld implements IGameWorld {
 		store.add(NPS);
 		
 		System.out.println("An NPS has been added");
+		
+		proxy();
 	}
 	
 	public void addBlinkingSpaceStation() {
@@ -56,97 +85,126 @@ public class GameWorld implements IGameWorld {
 		//Adds a station to the vector
 		store.add(station);
 		System.out.println("A space station has been added");
+		proxy();
 	}
 	
 	public void addShipPlayer() {
 		if(hasPlayerShip==false) {
-		ShipPlayer player= new ShipPlayer();
-		store.add(player);
-		System.out.println("A player ship has been added");
-		//once a player ship is added, change boolean to show that
-		//a player ship exists
-		boolean hasPlayerShip=true;
+			ShipPlayer player= new ShipPlayer();
+			store.add(player);
+			System.out.println("A player ship has been added");
+			numLives=3;
+			//once a player ship is added, change boolean to show that
+			//a player ship exists
+			hasPlayerShip=true;
 		}else
 		{
 			System.out.println("Player ship already exists");
 		}
+		proxy();
 	}
 	
 	public void fireMissile() {
-		//speed direction x and y
-		Missile PSmissile= new Missile();
-		//searching through vector for object of type ShipPlayer
-		for (int i=0; i<store.size(); i++) {
-			if(store.elementAt(i) instanceof ShipPlayer) {
+		boolean ps=false;
+		Iterator bank = this.getIterator();
+		while(bank.hasNext()) {
+			GameObject shipclone = (GameObject) bank.getNext();
+			if(shipclone instanceof ShipPlayer) {
+				ps=true;
 				//once ShipPlayer found, make clone of player ship
 				ShipPlayer clone= new ShipPlayer();
-				clone = (ShipPlayer) store.get(i);
+				clone = (ShipPlayer) shipclone;
 				//use clone to call methods
-				PSmissile.setSpeed(clone.getSpeed());
-				PSmissile.setDirection(clone.getDirection());
-				PSmissile.setLocation(clone.getLocationX(), clone.getLocationY());
-				//stop for loop
-				i=store.size();
-				clone.decrementMissileCount();
+				if (clone.getMissileCount()>0) {
+					Missile PSmissile = new Missile(clone.getSpeed(), clone.getDirection(),
+							clone.getLocationX(), clone.getLocationY(), clone.getMissileLauncher(), clone);
+					clone.decrementMissileCount();
+					store.add(PSmissile);
+					numPlayerMissiles-=1;
+					proxy();
+					System.out.println("Player has fired a missile");
+					shipFiresMissile.play();
+					//clone.setMissileCount(clone.getMissileCount()-1);
+				}else {
+					System.out.println("You have run out of missiles!");
+				}
+				break;
 			}
 		}
-		store.add(PSmissile);
-		System.out.println("Player has fired a missile");
-		numPlayerMissiles-=1;
-		//if player runs out of missiles, shoot message
-		if(numPlayerMissiles==0) {
-			System.out.println("You have run out of missiles!");
+		if(ps==false) {
+			System.out.println("A PS is not in play");
 		}
 	} 
 	
 	public void fireNonPlayerMissile() {
-		Missile NPSmissile=new Missile();
+		boolean nps=false;
+		Iterator bank=this.getIterator();
 		//looking through vector for object of type NPS
-		for (int i=0; i<store.size(); i++) {
-			if(store.elementAt(i) instanceof ShipNonPlayer) {
+		while (bank.hasNext()) {
+			GameObject shipclone = (GameObject) bank.getNext();
+			if(shipclone instanceof ShipNonPlayer) {
+				nps=true;
 				//when found, create clone to call object methods
 				ShipNonPlayer clone= new ShipNonPlayer();
-				clone = (ShipNonPlayer) store.get(i);
-				NPSmissile.setSpeed(clone.getSpeed());
-				NPSmissile.setDirection(clone.getDirection());
-				NPSmissile.setLocation(clone.getLocationX(), clone.getLocationY());
-				//stop for loop
-				i=store.size();
-				clone.decrementMissileCount();
+				clone = (ShipNonPlayer) shipclone;
+				//use clone to call methods
+				if (clone.getMissileCount()>0) {
+					Missile NPSmissile = new Missile(clone.getSpeed(), clone.getDirection(),
+							clone.getLocationX(), clone.getLocationY(), clone.getMissileLauncher(), clone);
+					clone.decrementMissileCount();
+					store.add(NPSmissile);
+					proxy();
+					System.out.println("NPS has fired a missile");
+					//clone.setMissileCount(clone.getMissileCount()-1);
+				}else {
+					proxy();
+					System.out.println("NPS out of missiles");
+				}
+				break;
 			}
 		}
-		store.add(NPSmissile);
-		System.out.println("Non player has fired a missile");
+		if(nps==false) {
+			System.out.println("An NPS is not in play");
+		}
 	}
 
 	public void eliminate() {
-		
+		boolean nps=false;
+		boolean missile=false;
+		Iterator bank=getIterator();
 		//look through vector for object of NPS
-		for (int i = 0; i<store.size(); i++)
+		while (bank.hasNext())
 		{
-			 if(store.elementAt(i) instanceof ShipNonPlayer) {
+			GameObject shipclone = (GameObject) bank.getNext();
+			 if(shipclone instanceof ShipNonPlayer) {
 				 //when found, make sure there is a missile in there too
-					for (int k = 0; k<store.size(); k++)
+				 nps=true;
+				 Iterator bank2 = getIterator();
+					while (bank2.hasNext())
 					{
+						GameObject missileclone=(GameObject) bank2.getNext();
 						//when found, remove the one with a higher index
 						//that way, object doesn't change index and unwanted removal doesn't occur
-						 if(store.elementAt(k) instanceof Missile) {
-							 if(k>i) {
-								 store.remove(k);
-								 store.remove(i);
-							 }else {
-								 store.remove(i);
-								 store.remove(k);
-							 }
+						 if(missileclone instanceof Missile) {
+							 missile=true;
+							 bank2.remove(missileclone);
+							 bank.remove(shipclone);
 							 System.out.println("PS missile has destroyed an NPS");
 							 System.out.println("+20 points");
 							 playerScore+=20;
-							 //prevent for loop from continuing
-							 i=store.size();
-							 k=store.size();
+							 proxy();
+							 break;
 						 }
 					}
-			 }
+					break;
+			}
+		}
+		if((nps==false)&&(missile==false)) {
+			System.out.println("No NPS's or missiles are in play");
+		}else if(nps==false) {
+			System.out.println("No NPS's are in play");
+		}else if(missile==false) {
+			System.out.println("No missiles are in play");
 		}
 	}
 
@@ -154,34 +212,46 @@ public class GameWorld implements IGameWorld {
 	public void map() {
 		
 		//find PS in vector, call toString method to print data
-		for (int i = 0; i<store.size(); i++)
+		Iterator bank = getIterator();
+		while(bank.hasNext())
 		{
-			if(store.elementAt(i) instanceof ShipPlayer) {
-				System.out.println(store.get(i).toString());
-				i=store.size();
+			GameObject shipclone = (GameObject) bank.getNext();
+			if(shipclone instanceof ShipPlayer) {
+				System.out.println(shipclone.toString());
+				break;
 			}
 		}
+		
 		//find NPS in vector, call tpString method to print data
-		for (int i = 0; i<store.size(); i++)
+		bank=getIterator();
+		while (bank.hasNext())
 		{
-			if(store.elementAt(i) instanceof ShipNonPlayer) {
-				System.out.println(store.get(i).toString());
-				i=store.size();
+			GameObject shipclone=(GameObject) bank.getNext();
+			if(shipclone instanceof ShipNonPlayer) {
+				System.out.println(shipclone.toString());
+				break;
 			}
 		}
+		
 		//find missile in vector, call tpString method to print data
-		for (int i = 0; i<store.size(); i++)
+		bank=getIterator();
+		while (bank.hasNext())
 		{
-			if(store.elementAt(i) instanceof Missile) {
-				System.out.println(store.get(i).toString());
-				i=store.size();
+			GameObject missileclone=(GameObject) bank.getNext();
+			if(missileclone instanceof Missile) {
+				System.out.println(missileclone.toString());
+				break;
 			}
 		}
+		
 		//find asteroid in vector, call tpString method to print data
-		for (int i = 0; i<store.size(); i++)
+		bank=getIterator();
+		while (bank.hasNext())
 		{
-			if(store.elementAt(i) instanceof Asteroid) {
-				System.out.println(store.get(i).toString());
+			GameObject asteroidclone=(GameObject) bank.getNext();
+			if(asteroidclone instanceof Asteroid) {
+				System.out.println(asteroidclone.toString());
+				break;
 			}
 		}
 		
@@ -189,15 +259,22 @@ public class GameWorld implements IGameWorld {
 	
 	public void turnPlayerMissileLauncher() {
 		//find PS inside of vector
-		for (int i = 0; i<store.size(); i++)
-		{
+		boolean missilelauncher=false;
+		Iterator bank=getIterator();
+		while (bank.hasNext()) {
 			//clone PS to call methods
-			if(store.elementAt(i) instanceof ShipPlayer) {
+			GameObject shipclone=(GameObject) bank.getNext();
+			if(shipclone instanceof ShipPlayer) {
 				ShipPlayer clone = new ShipPlayer();
-				clone = (ShipPlayer) store.get(i);
+				clone = (ShipPlayer) shipclone;
 				clone.revolveML();
-				i=store.size();
+				missilelauncher=true;
+				proxy();
+				break;
 			}
+		}
+		if (missilelauncher==false) {
+			System.out.println("There is no missile launcher to turn");
 		}
 	}
 	public void print() {
@@ -206,172 +283,270 @@ public class GameWorld implements IGameWorld {
 	}
 	
 	public void reloadMissiles() {
-		if(numPlayerMissiles<10) {
-			numPlayerMissiles=10;
-			System.out.println("You have picked up missiles");
-		}else
-		{
-			System.out.println("The player has the maximum amount of missiles already");
+		boolean ps=false;
+		Iterator bank = this.getIterator();
+		while(bank.hasNext()) {
+			GameObject shipclone = (GameObject) bank.getNext();
+			if(shipclone instanceof ShipPlayer) {
+				ps=true;
+				//once ShipPlayer found, make clone of player ship
+				ShipPlayer clone= new ShipPlayer();
+				clone = (ShipPlayer) shipclone;
+				if(clone.getMissileCount()<10) {
+					clone.setMissileCount(10);
+					numPlayerMissiles=10;
+					proxy();
+					System.out.println("You have picked up missiles");
+				}else
+				{
+					System.out.println("The player has the maximum amount of missiles already");
+				}
+			}
 		}
 	}
 	
 	public void PSKillAsteroid() {
-		
-		for (int i = 0; i<store.size(); i++)
-		{
-			 if(store.elementAt(i) instanceof Missile) {
-					for (int k = 0; k<store.size(); k++)
+		boolean asteroid = false;
+		boolean missile=false;
+		Iterator bank=getIterator();
+		while (bank.hasNext()) {
+			GameObject missileclone=(GameObject) bank.getNext();
+			 if(missileclone instanceof Missile) {
+				 missile=true;
+				 Iterator bank2=getIterator();
+					while (bank2.hasNext())
 					{
-						 if(store.elementAt(k) instanceof Asteroid) {
-							 if(k>i) {
-								 store.remove(k);
-								 store.remove(i);
-							 }else {
-								 store.remove(i);
-								 store.remove(k);
-							 }
+						GameObject asteroidclone =(GameObject) bank2.getNext();
+						 if(asteroidclone instanceof Asteroid) {
+							 asteroid=true;
+							 bank.remove(asteroidclone);
+							 bank2.remove(missileclone);
 							 System.out.println("PS missile has destroyed an asteroid");
 							 System.out.println("+5 points");
 							 playerScore+=5;
-							 k=store.size();
-							 i=store.size();
+							 proxy();
+							 
+							 break;
 						 }
 					}
+					break;
 			 }
+		}
+		if((asteroid==false)&&(missile==false)) {
+			System.out.println("No asteroids or missiles are in play");
+		}else if(asteroid==false) {
+			System.out.println("No asteroids are in play");
+		}else if(missile==false) {
+			System.out.println("No missiles are in play");
 		}
 	}
 	
 	//TODO There can be multiple non player ships,
 	//for loop needs to be added to check for a random nonplayer ship
 	public void NPSMissileKillPS() {
-		for (int i = 0; i<store.size(); i++)
-		{
-			if(store.elementAt(i) instanceof Missile) {
-				 store.remove(i);
-				 System.out.println("NPS Missile has struck you!");
-				 System.out.println("-1 life");
-				 numLives-=1;
-				 i=store.size();
-				 if (numLives==0) {
-					 System.out.println("You have died. Player score: "+playerScore);
-					 hasPlayerShip=false;
-					 return;
+		boolean missile=false;
+		boolean ship=false;
+		Iterator bank=getIterator();
+		while (bank.hasNext()){
+			GameObject missileclone=(GameObject) bank.getNext();
+			if(missileclone instanceof Missile) {
+				missile=true;
+				Iterator bank2=getIterator();
+				GameObject shipclone=(GameObject) bank2.getNext();
+				while(bank2.hasNext()) {
+					if(shipclone instanceof ShipPlayer) {
+					  	 ship=true;
+						 bank.remove(missileclone);
+						 //bank2.remove();
+						 System.out.println("NPS Missile has struck you!");
+						 System.out.println("-1 life");
+						 numLives-=1;
+						 proxy();
+						 if (numLives==0) {
+							 System.out.println("You have died. Player score: "+playerScore);
+							 bank2.remove(shipclone);
+							 hasPlayerShip=false;
+							 proxy();
+							 return;
+						 }
+						 break;
+					}
 				 }
+				break;
 			 }
+		}
+		if((hasPlayerShip==false)&&(missile==false)) {
+			System.out.println("No PS's or missiles are in play");
+		}else if(hasPlayerShip==false) {
+			System.out.println("No PS's are in play");
+		}else if(missile==false) {
+			System.out.println("No missiles are in play");
 		}
 	}
 	
 	public void PSCollideAsteroid() {
-		for (int i = 0; i<store.size(); i++)
-		{
-			if(store.elementAt(i) instanceof Asteroid) {
-				 store.remove(i);
-				 System.out.println("An asteroid has struck you!");
-				 System.out.println("-1 life");
-				 numLives-=1;
-				 i=store.size();
-				 if (numLives==0) {
-					 System.out.println("You have died. Player score: "+playerScore);
-					 hasPlayerShip=false;
-					 return;
+		boolean asteroid=false;
+		boolean ship = false;
+		Iterator bank = getIterator();
+		while (bank.hasNext()){
+			GameObject asteroidclone=(GameObject) bank.getNext();
+			if(asteroidclone instanceof Asteroid) {
+				asteroid=true;
+				Iterator bank2=getIterator();
+				while(bank2.hasNext()) {
+					GameObject shipclone=(GameObject) bank2.getNext();
+					if(shipclone instanceof ShipPlayer) {
+					  	 ship=true;
+						 bank.remove(shipclone);
+						 bank2.remove(asteroidclone);
+						 System.out.println("An asteroid has struck you!");
+						 System.out.println("-1 life");
+						 numLives-=1;
+						 proxy();
+						 if (numLives==0) {
+							 System.out.println("You have died. Player score: "+playerScore);
+							 hasPlayerShip=false;
+							 proxy();
+							 return;
+						 }
+						 break;
+					}
 				 }
+				break;
 			 }
+		}
+		if((ship==false)&&(asteroid==false)) {
+			System.out.println("No PS's or asteroids are in play");
+		}else if(ship==false) {
+			System.out.println("No PS's are in play");
+		}else if(asteroid==false) {
+			System.out.println("No asteroids are in play");
 		}
 	}
 	
 	//TODO check for if game is over
 	//Same case for any numLives-=1;
 	public void PSCollideNPS() {
-		for (int i = 0; i<store.size(); i++)
+		boolean ps=false;
+		boolean nps=false;
+		Iterator bank = getIterator();
+		while (bank.hasNext())
 		{
-			 if(store.elementAt(i) instanceof ShipPlayer) {
-					for (int k = 0; k<store.size(); k++)
+			GameObject shipclone= (GameObject) bank.getNext();
+			 if(shipclone instanceof ShipPlayer) {
+				 ps=true;
+				 Iterator bank2 = getIterator();
+					while (bank2.hasNext())
 					{
-						 if(store.elementAt(k) instanceof ShipNonPlayer) {
-							 if(k>i) {
-								 store.remove(k);
-								 store.remove(i);
-							 }else {
-								 store.remove(i);
-								 store.remove(k);
-							 }
+						GameObject nonshipclone=(GameObject) bank2.getNext();
+						 if(nonshipclone instanceof ShipNonPlayer) {
+							 nps=true;
+							 bank.remove(shipclone);
+							 bank2.remove(nonshipclone);
 							 System.out.println("PS has crashed into an NPS!");
 							 System.out.println("-1 life");
 							 numLives-=1;
-							 k=store.size();
-							 i=store.size();
 							 if (numLives==0) {
 								 System.out.println("You have died. Player score: "+playerScore);
 								 hasPlayerShip=false;
 								 return;
 							 }
+							 break;
 						 }
 					}
+					break;
 			 }
+		}
+		if((ps==false)&&(nps==false)) {
+			System.out.println("No NPS's or NP's are in play");
+		}else if(nps==false) {
+			System.out.println("No NPS's are in play");
+		}else if(ps==false) {
+			System.out.println("No PS's are in play");
 		}
 	}
 	
 	public void AsteroidCollision() {
-		for (int i = 0; i<store.size(); i++)
+		boolean asteroid1=false;
+		boolean asteroid2=false;
+		Iterator bank = getIterator();
+		while (bank.hasNext())
 		{
-			if(store.elementAt(i) instanceof Asteroid) {
-				store.remove(i);
-				i = store.size();
+			GameObject asteroidclone = (GameObject) bank.getNext();
+			if(asteroidclone instanceof Asteroid) {
+				asteroid1=true;
+				Iterator bank2=getIterator();
+				while (bank2.hasNext())
+				{
+					GameObject asteroidclone2 = (GameObject) bank2.getNext();
+					if(asteroidclone2 instanceof Asteroid) {
+						asteroid2=true;
+						bank.remove(asteroidclone);
+						bank2.remove(asteroidclone2);
+						System.out.println("Two Asteroids have collided!");
+						break;
+					}
+				}
+				break;
 			}
 		}
-		for (int i = 0; i<store.size(); i++)
-		{
-			if(store.elementAt(i) instanceof Asteroid) {
-				store.remove(i);
-				i = store.size();
-			}
+		if((asteroid1==false)||(asteroid2==false)) {
+			System.out.println("Only one asteroid exists");
+		}else if((asteroid1==false)&&(asteroid2==false)) {
+			System.out.println("No asteroids exists");
+
 		}
-		System.out.println("Two Asteroids have collided!");
 	}
 	
 	public void NPSCollideAsteroid() {
-		for (int i = 0; i<store.size(); i++)
+		boolean nps=false;
+		boolean asteroid=false;
+		Iterator bank = getIterator();
+		while (bank.hasNext())
 		{
-			 if(store.elementAt(i) instanceof ShipNonPlayer) {
-					for (int k = 0; k<store.size(); k++)
+			GameObject nonshipclone=(GameObject) bank.getNext();
+			 if(nonshipclone instanceof ShipNonPlayer) {
+				 nps=true;
+				 Iterator bank2 = getIterator();
+					while (bank2.hasNext())
 					{
-						 if(store.elementAt(k) instanceof Asteroid) {
-							 if(k>i) {
-								 store.remove(k);
-								 store.remove(i);
-							 }else {
-								 store.remove(i);
-								 store.remove(k);
-							 }
+						GameObject asteroidclone=(GameObject) bank2.getNext();
+						 if(asteroidclone instanceof Asteroid) {
+							 asteroid=true;
+							 bank.remove(nonshipclone);
+							 bank2.remove(asteroidclone);
 							 System.out.println("NPS has crashed into an Asteroid!");
-							 k=store.size();
-							 i=store.size();
+							 break;
 						 }
 					}
+					break;
 			 }
+		}
+		if((nps==false)&&(asteroid==false)) {
+			System.out.println("No NPS's or asteroids exist");
+		}else if(nps==false) {
+			System.out.println("No NPS's exist");
+		}else if(asteroid==false) {
+			System.out.println("No asteroids exist");
 		}
 	}
 	
 	public Iterator getIterator() {
-		return null;
+		return store.getIterator();
 	}
 	
 	public int getPlayerScore() {
 		return playerScore;
 	}
 	
-	public int getMissileCount() {
-		return numPlayerMissiles;
-		
-	}
 	
-	public int getElapsedTime() {
+	public float getElapsedTime() {
 		return gameTime;
 		
 	}
 
 	public boolean isSoundEnabled() {
-		return false;
+		return soundToggle;
 	}
 	
 	public int getLivesRemaining() {
@@ -379,94 +554,331 @@ public class GameWorld implements IGameWorld {
 	}
 
 	public void turnPlayerShipLeft() {
-		for (int i = 0; i<store.size(); i++)
+		boolean ps = false;
+		Iterator bank = getIterator();
+		while(bank.hasNext())
 		{
+			GameObject shipclone=(GameObject) bank.getNext();
 			//clone PS to call methods
-			if(store.elementAt(i) instanceof ShipPlayer) {
+			if(shipclone instanceof ShipPlayer) {
+				ps=true;
 				ShipPlayer clone = new ShipPlayer();
-				clone = (ShipPlayer) store.get(i);
+				clone = (ShipPlayer) shipclone;
 				clone.turnLeft();
-				i=store.size();
+				proxy();
+				break;
 			}
+		}
+		if(ps==false) {
+			System.out.println("A PS does not exist");
 		}
 	}
 
 	public void decreasePSSpeed() {
-		for (int i = 0; i<store.size(); i++)
+		boolean ps=false;
+		Iterator bank = getIterator();
+		while (bank.hasNext())
 		{
+			GameObject shipclone=(GameObject) bank.getNext();
 			//clone PS to call methods
-			if(store.elementAt(i) instanceof ShipPlayer) {
+			if(shipclone instanceof ShipPlayer) {
+				ps=true;
 				ShipPlayer clone = new ShipPlayer();
-				clone = (ShipPlayer) store.get(i);
+				clone = (ShipPlayer) shipclone;
 				clone.decreaseSpeed();
-				i=store.size();
+				proxy();
+				break;
 			}
+		}
+		if(ps==false) {
+			System.out.println("A PS does not exist");
+		}
+	}
+	
+	public void increasePSSpeed() {
+		boolean ps=false;
+		Iterator bank = getIterator();
+		while(bank.hasNext())
+		{
+			GameObject shipclone=(GameObject) bank.getNext();
+			//clone PS to call methods
+			if(shipclone instanceof ShipPlayer) {
+				ps=true;
+				ShipPlayer clone = new ShipPlayer();
+				clone = (ShipPlayer) shipclone;
+				clone.increaseSpeed();
+				proxy();
+				break;
+			}
+		}
+		if(ps==false) {
+			System.out.println("A PS does not exist");
 		}
 	}
 
 	public void turnPlayerShipRight() {
-		for (int i = 0; i<store.size(); i++)
+		boolean ps=false;
+		Iterator bank = getIterator();
+		while (bank.hasNext())
 		{
+			GameObject shipclone=(GameObject) bank.getNext();
 			//clone PS to call methods
-			if(store.elementAt(i) instanceof ShipPlayer) {
+			if(shipclone instanceof ShipPlayer) {
+				ps=true;
 				ShipPlayer clone = new ShipPlayer();
-				clone = (ShipPlayer) store.get(i);
+				clone = (ShipPlayer) shipclone;
 				clone.turnRight();
-				i=store.size();
+				proxy();
+				break;
 			}
 		}
+		if(ps==false) {
+			System.out.println("A PS does not exist");
+		}
+	}
+	
+	public void turnPSLauncherRight() {
+		boolean launcher=false;
+		Iterator bank = getIterator();
+		while (bank.hasNext())
+		{
+			GameObject shipclone=(GameObject) bank.getNext();
+			//clone PS to call methods
+			if(shipclone instanceof ShipPlayer) {
+				launcher=true;
+				ShipPlayer clone = new ShipPlayer();
+				clone = (ShipPlayer) shipclone;
+				clone.turnLauncherRight();
+				proxy();
+				break;
+			}
+		}
+		if(launcher=false) {
+			System.out.println("A PS does not exist");
+		}
+				
+	}
+	
+	public void turnPSLauncherLeft() {
+		boolean launcher=false;
+		Iterator bank=getIterator();
+		while (bank.hasNext())
+		{
+			GameObject shipclone=(GameObject) bank.getNext();
+			//clone PS to call methods
+			if(shipclone instanceof ShipPlayer) {
+				launcher=true;
+				ShipPlayer clone = new ShipPlayer();
+				clone = (ShipPlayer) shipclone;
+				clone.turnLauncherLeft();
+				proxy();
+				break;
+				
+			}
+		}
+		if(launcher=false) {
+			System.out.println("A PS does not exist");
+		}		
 	}
 
 	public void jumpThroughHyperspace() {
-		for (int i = 0; i<store.size(); i++)
+		boolean ps = false;
+		Iterator bank=getIterator();
+		while (bank.hasNext())
 		{
+			GameObject shipclone=(GameObject) bank.getNext();
 			//clone PS to call methods
-			if(store.elementAt(i) instanceof ShipPlayer) {
+			if(shipclone instanceof ShipPlayer) {
+				ps=true;
 				ShipPlayer clone = new ShipPlayer();
-				clone = (ShipPlayer) store.get(i);
+				clone = (ShipPlayer) shipclone;
 				clone.jumpThroughHyperspace();
-				i=store.size();
+				proxy();
+				break;
 			}
+		}
+		if (ps==false) {
+			System.out.println("A PS does not exist");
 		}
 	}
 	
 	public void tick() {
-		for (int i = 0; i<store.size(); i++)
+		
+		Iterator bank=getIterator();
+		while (bank.hasNext())
 		{
+			GameObject shipclone=(GameObject) bank.getNext();
 			//clone PS to call methods
-			if(store.elementAt(i) instanceof ShipPlayer) {
+			if(shipclone instanceof ShipPlayer) {
 				ShipPlayer clone = new ShipPlayer();
-				clone = (ShipPlayer) store.get(i);
-				clone.setLocation((clone.getLocationX()+(Math.cos(90-clone.getDirection())*clone.getSpeed())), 
-						((clone.getLocationY()+(Math.sin(90-clone.getDirection())*clone.getSpeed()))));
-				i=store.size();
+				clone = (ShipPlayer) shipclone;
+				clone.move(getMinHeight(), getMinWidth(), getMaxHeight(), getMaxWidth());
+				proxy();
+				break;
 			}
 		}
-		
-		for (int i = 0; i<store.size(); i++)
+		bank=getIterator();
+		while (bank.hasNext())
 		{
-			if(store.elementAt(i) instanceof Missile) {
-				Missile clone = new Missile();
-				clone = (Missile) store.get(i);
+			GameObject shipclone=(GameObject) bank.getNext();
+			//clone PS to call methods
+			if(shipclone instanceof ShipNonPlayer) {
+				ShipNonPlayer clone = new ShipNonPlayer();
+				clone = (ShipNonPlayer) shipclone;
+				clone.move();
+				proxy();
+				break;
+			}
+		}
+		bank=getIterator();
+		while (bank.hasNext())
+		{
+			GameObject missileclone=(GameObject) bank.getNext();
+			if(missileclone instanceof Missile) {
+				Missile clone = (Missile) missileclone;
 				clone.setFuelLevel(clone.getFuelLevel()-1);
 				if(clone.getFuelLevel()==0) {
-					store.remove(i);
-					i--;
+					bank.remove(missileclone);
+					proxy();
 				}
+				clone.move();
+				proxy();
+			}
+		}
+		bank=getIterator();
+		while (bank.hasNext())
+		{
+			GameObject asteroidClone=(GameObject) bank.getNext();
+			if(asteroidClone instanceof Asteroid) {
+				Asteroid clone = (Asteroid) asteroidClone;
+				clone.move();
+				proxy();
 			}
 		}
 		
-		for (int i = 0; i<store.size(); i++)
+		bank=getIterator();
+		while (bank.hasNext())
 		{
-			if(store.elementAt(i) instanceof SpaceStation) {
+			GameObject spacestationclone=(GameObject) bank.getNext();
+			if(spacestationclone instanceof SpaceStation) {
 				SpaceStation clone = new SpaceStation();
-				clone = (SpaceStation) store.get(i);
+				clone = (SpaceStation) spacestationclone;
 				if(this.gameTime%clone.getBlinkRate()==0) {
 					clone.toggleLight();
+					proxy();
 				}
-				i=store.size();
+				break;
 			}
 		}
-		this.gameTime+=1;
+		collision();
+		this.gameTime+=0.025;
+		proxy();
+	}
+	public void collision() {
+		Iterator iter = store.getIterator();
+		while(iter.hasNext()) {
+			ICollider currentObject=(ICollider) iter.getNext();
+			Iterator iter2=store.getIterator();
+			while(iter2.hasNext()) {
+				ICollider otherObject=(ICollider) iter2.getNext();
+				if(otherObject!=currentObject) {
+					if(currentObject.collidesWith(otherObject)) {
+						currentObject.handleCollision(otherObject);
+					}
+				}
+			}
+		}
+		proxy();
+	}
+
+	public void quit() {
+		System.exit(0);
+		
+	}
+
+	public void about() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	public void sound() {
+		if(soundToggle) {
+			soundToggle=false;
+			gameBackgroundMusic.pause();
+		}else
+		{
+			soundToggle=true;
+			gameBackgroundMusic.play();
+		}
+		proxy();
+	}
+
+	public void undo() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	public void save() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	public void newGame() {
+		store.getCollection().clear();
+		numLives =3;
+		gameTime=0;
+		playerScore=0;
+		numPlayerMissiles=10;
+		numNonPlayerMissiles=4;
+		hasPlayerShip=false;
+	}
+
+	public GameObjectCollection getGameObjects() {
+		return store;
+	}
+
+	public int getMissileCount() {
+		return numPlayerMissiles;
+	}
+	
+	public double getHeight() {
+		return windowHeight;
+	}
+	
+	public double getWidth() {
+		return windowWidth;
+	}
+	public void setDimension(int x, int y) {
+		windowHeight=y;
+		windowWidth=x;
+	}
+	public boolean isEmpty() {
+		return store.getCollection().isEmpty();
+	}
+	
+	public double getMaxWidth() {
+		return windowWidth+minWidth;
+	}
+	
+	public double getMaxHeight() {
+		return windowHeight=minHeight;
+	}
+
+	public void setMinSize(Point minimumSize) {
+		minHeight=minimumSize.getX();
+		minWidth=minimumSize.getY();
+	}
+	
+	public double getMinHeight() {
+		return minHeight;
+	}
+	
+	public double getMinWidth() {
+		return minWidth;
+	}
+
+	public void diedCommand() {
+		// TODO Auto-generated method stub
+		
 	}
 }

@@ -25,4 +25,5 @@ abstract class Ship extends ObjectMoveable {
 	public void decrementMissileCount() {
 		missileCount-=1;
 	}
+	
 }
